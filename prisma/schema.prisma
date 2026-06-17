@@ -1,0 +1,128 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Prisma Schema — AI Use Case Finder & Implementation Advisor
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum CompanySize {
+  STARTUP
+  SMALL_BUSINESS
+  MID_MARKET
+  ENTERPRISE
+}
+
+enum ROILevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum PriorityRank {
+  IMMEDIATE
+  STRATEGIC
+  FUTURE
+}
+
+enum ProjectStatus {
+  PENDING    // created, no analysis yet
+  ANALYZING  // Gemini call in-flight
+  COMPLETED  // at least one analysis exists
+  FAILED     // last analysis attempt errored
+}
+
+// ─── User ─────────────────────────────────────────────────────────────────────
+// Synced from Clerk via POST /api/webhooks/clerk on user.created / user.updated
+
+model User {
+  id        String    @id                       // Clerk user ID (primary key)
+  email     String    @unique
+  name      String?
+  imageUrl  String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  projects  Project[]
+
+  @@map("users")
+}
+
+// ─── Project ──────────────────────────────────────────────────────────────────
+// Captures the business context the user provides before AI analysis
+
+model Project {
+  id                 String        @id @default(cuid())
+  userId             String
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title              String
+  industry           String
+  department         String
+  companySize        CompanySize
+  problemStatement   String        @db.Text
+  processDescription String        @db.Text
+  status             ProjectStatus @default(PENDING)
+
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  analyses           Analysis[]
+
+  @@index([userId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status])
+  @@map("projects")
+}
+
+// ─── Analysis ─────────────────────────────────────────────────────────────────
+// One project → many analyses (full history kept; latest shown by default)
+
+model Analysis {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // ── Scores (0–100) ──────────────────────────────────────────────────────────
+  feasibilityScore  Int
+  impactScore       Int
+  complexityScore   Int
+
+  // ── ROI ─────────────────────────────────────────────────────────────────────
+  roiLevel  ROILevel
+  roiRange  String          // e.g. "120–180%"
+
+  // ── Classification ──────────────────────────────────────────────────────────
+  priorityRank PriorityRank
+
+  // ── AI-generated prose & structured data ────────────────────────────────────
+  executiveSummary    String  @db.Text
+
+  // Stored as JSONB; validated against UseCaseSchema[] at application layer
+  recommendations     Json    @default("[]")
+
+  // { day30: string[], day60: string[], day90: string[] }
+  roadmap             Json    @default("{}")
+
+  // { tools: TechRecommendation[] }
+  techRecommendations Json    @default("{}")
+
+  // ── Raw Gemini response (for debugging / replay) ─────────────────────────────
+  rawGeminiResponse   Json?
+
+  // ── Token usage tracking ─────────────────────────────────────────────────────
+  promptTokens    Int?
+  completionTokens Int?
+
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
+  @@index([projectId, createdAt(sort: Desc)])
+  @@map("analyses")
+}
