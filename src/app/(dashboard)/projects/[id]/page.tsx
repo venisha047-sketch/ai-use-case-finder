@@ -10,6 +10,7 @@ import {
   Trash2,
   AlertCircle,
   BarChart3,
+  History,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -190,6 +191,12 @@ export default function ProjectDetailPage({
               </p>
             </div>
             <div className="flex gap-2">
+              <Link href={`/projects/${id}/history`}>
+                <Button size="sm" variant="ghost" className="gap-1.5 text-muted-foreground">
+                  <History className="h-3.5 w-3.5" />
+                  History
+                </Button>
+              </Link>
               <Link href={`/analysis/${project.latestAnalysis!.id}`}>
                 <Button size="sm" variant="outline" className="gap-1.5">
                   <BarChart3 className="h-3.5 w-3.5" />

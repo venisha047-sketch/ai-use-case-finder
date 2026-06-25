@@ -20,6 +20,7 @@ import {
   type UpdateProjectPayload,
 } from "@/lib/repositories/project.repository";
 import { Errors, requireOwnership } from "@/lib/errors";
+import { ensureUserSynced } from "@/lib/repositories/user.repository";
 import type {
   Project,
   ProjectSummary,
@@ -34,6 +35,8 @@ export async function createProjectForUser(
   userId: string,
   input: CreateProjectInput
 ): Promise<Project> {
+  await ensureUserSynced(userId);
+
   const payload: CreateProjectPayload = {
     userId,
     title: input.title,

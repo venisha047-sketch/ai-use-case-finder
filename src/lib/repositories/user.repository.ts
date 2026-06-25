@@ -85,3 +85,36 @@ export async function upsertUser(payload: UpsertUserPayload): Promise<User> {
 export async function deleteUser(id: string): Promise<void> {
   await db.user.delete({ where: { id } });
 }
+
+/**
+ * Fallback sync: if the Clerk webhook hasn't fired yet (e.g. first login
+ * before the webhook endpoint was configured), this upserts the user row
+ * using data fetched from the Clerk API so the DB FK is never missing.
+ *
+ * Call this at the start of any route that creates user-owned data.
+ */
+export async function ensureUserSynced(userId: string): Promise<void> {
+  const exists = await userExists(userId);
+  if (exists) return;
+
+  try {
+    // Lazy import keeps @clerk/nextjs/server out of the repository at bundle time
+    const { currentUser } = await import("@clerk/nextjs/server");
+    const clerkUser = await currentUser();
+    if (!clerkUser || clerkUser.id !== userId) return;
+
+    const primaryEmail = clerkUser.emailAddresses.find(
+      (e) => e.id === clerkUser.primaryEmailAddressId
+    );
+    if (!primaryEmail) return;
+
+    await upsertUser({
+      id: clerkUser.id,
+      email: primaryEmail.emailAddress,
+      name: [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") || null,
+      imageUrl: clerkUser.imageUrl ?? null,
+    });
+  } catch {
+    // Best-effort: if Clerk API is unavailable, let the DB FK error surface naturally
+  }
+}

@@ -130,3 +130,43 @@ export async function deleteProject(id: string): Promise<void> {
   const json: DeleteProjectResponse = await res.json();
   if (!json.success) throw new Error(json.error.message);
 }
+
+// ─── Project analysis history hook ───────────────────────────────────────────
+
+interface UseProjectAnalysesResult {
+  analyses: import("@/types").Analysis[];
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+}
+
+export function useProjectAnalyses(projectId: string | null): UseProjectAnalysesResult {
+  const [analyses, setAnalyses] = useState<import("@/types").Analysis[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetch_ = useCallback(async () => {
+    if (!projectId) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/analyses`);
+      const json: import("@/types/api").ApiResponse<import("@/types").Analysis[]> = await res.json();
+      if (json.success) {
+        setAnalyses(json.data);
+      } else {
+        setError(json.error.message);
+      }
+    } catch {
+      setError("Failed to load analysis history.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    fetch_();
+  }, [fetch_]);
+
+  return { analyses, isLoading, error, refetch: fetch_ };
+}

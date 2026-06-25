@@ -20,6 +20,7 @@ import {
   createProjectForUser,
   listProjectsForUser,
 } from "@/lib/services/project.service";
+import { ensureUserSynced } from "@/lib/repositories/user.repository";
 
 export const GET = withApiHandler(async (req) => {
   const { userId } = await auth();
@@ -36,6 +37,9 @@ export const GET = withApiHandler(async (req) => {
 export const POST = withApiHandler(async (req) => {
   const { userId } = await auth();
   requireAuth(userId);
+
+  // Ensure the user row exists even if the Clerk webhook hasn't fired yet
+  await ensureUserSynced(userId);
 
   const body = await parseBody(req);
   const input = validate(CreateProjectSchema, body);

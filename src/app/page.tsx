@@ -46,9 +46,9 @@ const FEATURES = [
   },
   {
     icon: FileDown,
-    title: "Export-Ready Reports",
+    title: "PDF Export",
     description:
-      "Generate PDF reports formatted for executive audiences. Share findings with leadership without extra formatting work.",
+      "Download a formatted PDF report covering scores, use cases, roadmap, and tech stack — ready to share with stakeholders and leadership.",
   },
 ];
 

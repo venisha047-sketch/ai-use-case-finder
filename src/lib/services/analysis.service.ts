@@ -21,6 +21,7 @@ import {
 import {
   createAnalysis,
   findAnalysisById,
+  findAnalysesByProjectId,
   countRecentAnalysesByUserId,
   type CreateAnalysisPayload,
 } from "@/lib/repositories/analysis.repository";
@@ -165,6 +166,16 @@ export async function runAnalysisForProject(
 }
 
 // ─── Read ─────────────────────────────────────────────────────────────────────
+
+export async function getAnalysesForProject(
+  projectId: string,
+  userId: string
+): Promise<Analysis[]> {
+  const project = await findProjectById(projectId);
+  if (!project) throw Errors.projectNotFound(projectId);
+  requireOwnership(project.userId, userId);
+  return findAnalysesByProjectId(projectId);
+}
 
 export async function getAnalysisForUser(
   analysisId: string,
